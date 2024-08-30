@@ -182,11 +182,22 @@ class LlavaMetaForCausalLM(ABC):
         return image_feature
 
     def encode_images(self, images):
-        image_features = self.get_model().get_vision_tower()(images)
-        # image_features = self.get_model().vision_resampler(image_features, images=images)
-        image_features = self.get_model().mm_projector(image_features)
-        return image_features
+        vision_features = self.get_model().get_vision_tower()(images)
+        
+        self.last_vision_features = vision_features.detach().cpu()
+        
+        projected_features = self.get_model().mm_projector(vision_features)
+        
+        self.last_projected_features = projected_features.detach().cpu()
+        
+        return projected_features
     
+    def get_last_vision_features(self):
+        return getattr(self, 'last_vision_features', None)
+    
+    def get_last_projected_features(self):
+        return getattr(self, 'last_projected_features', None)
+
     def encode_multimodals(self, videos_or_images, video_idx_in_batch, split_sizes=None):
         videos_or_images_features = self.get_model().get_vision_tower()(videos_or_images)
         per_videos_or_images_features = torch.split(videos_or_images_features, split_sizes, dim=0)  # tuple, (dim_1, 576, 4096)
